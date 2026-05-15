@@ -39,6 +39,7 @@ def main():
         "--onefile",
         "--windowed",
         "--add-data=icons/icons.png:icons",
+        "--add-data=dictionaries:dictionaries",
         "--add-data=src:src", # Include the modular source
         "--name=DocumentUnlockerPRO",
         "--clean",

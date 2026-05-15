@@ -1,51 +1,84 @@
-from PyQt6.QtWidgets import QWidget
-from PyQt6.QtCore import Qt, QPointF
+from PyQt6.QtWidgets import QWidget, QCheckBox
+from PyQt6.QtCore import Qt, QPointF, QPropertyAnimation, pyqtProperty, QRect, QEasingCurve
 from PyQt6.QtGui import QPainter, QPen, QBrush, QColor, QLinearGradient
-from .themes import THEMES
 
-class NeonGraph(QWidget):
-    def __init__(self, parent, theme):
-        super().__init__(parent)
-        self.theme = theme
-        self.data = [0] * 60
-        self.max_val = 100
-        self.setFixedHeight(120)
+class ToggleSwitch(QCheckBox):
+    def __init__(self, parent=None, bg_color="#1e293b", circle_color="#94a3b8", active_color="#38bdf8", text=""):
+        super().__init__(text, parent)
+        self.setFixedSize(60, 28)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._position = 4
+        
+        self.bg_color = bg_color
+        self.circle_color = circle_color
+        self.active_color = active_color
 
-    def update_data(self, val):
-        self.data.append(val)
-        self.data.pop(0)
-        self.max_val = max(max(self.data), 10)
+        self.animation = QPropertyAnimation(self, b"position")
+        self.animation.setEasingCurve(QEasingCurve.Type.InOutSine)
+        self.animation.setDuration(150)
+        
+        self.stateChanged.connect(self.setup_animation)
+
+    @pyqtProperty(float)
+    def position(self):
+        return self._position
+
+    @position.setter
+    def position(self, pos):
+        self._position = pos
         self.update()
+
+    def setup_animation(self, value):
+        self.animation.stop()
+        if value:
+            self.animation.setEndValue(self.width() - 24)
+        else:
+            self.animation.setEndValue(4)
+        self.animation.start()
+
+    def hitButton(self, pos):
+        return self.contentsRect().contains(pos)
 
     def paintEvent(self, event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        c = THEMES[self.theme]
-        w, h = self.width(), self.height()
-        
+
+        # Background
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QBrush(QColor(c["surface"])))
-        p.drawRoundedRect(0, 0, w, h, 10, 10)
+        if self.isChecked():
+            p.setBrush(QColor(self.active_color))
+        else:
+            p.setBrush(QColor(self.bg_color))
+        p.drawRoundedRect(0, 0, self.width(), self.height(), 14, 14)
+
+        # Handle
+        p.setBrush(QColor(self.circle_color if not self.isChecked() else "#ffffff"))
+        p.drawEllipse(int(self._position), 4, 20, 20)
+        p.end()
+
+class ModernCheckBox(QWidget):
+    """A wrapper to hold the toggle switch and label side-by-side"""
+    def __init__(self, text, parent=None):
+        super().__init__(parent)
+        from PyQt6.QtWidgets import QHBoxLayout, QLabel
+        self.layout = QHBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(10)
         
-        if w < 20: return
-        step = w / (len(self.data) - 1)
-        points = []
-        for i, v in enumerate(self.data):
-            x = i * step
-            y = h - (v / self.max_val * (h * 0.7)) - 10
-            points.append((x, y))
-            
-        grad = QLinearGradient(0, 0, 0, h)
-        acc = QColor(c["accent"])
-        grad.setColorAt(0, acc)
-        grad.setColorAt(1, QColor(0,0,0,0))
+        self.toggle = ToggleSwitch()
+        self.label = QLabel(text)
+        self.label.setObjectName("checkLabel")
+        self.label.setStyleSheet("color: #94a3b8; font-weight: 500;")
         
-        p.setBrush(QBrush(grad))
-        p.setOpacity(0.4)
-        p.drawPolygon([QPointF(x, y) for x, y in ([(0, h)] + points + [(w, h)])])
-        
-        p.setOpacity(1.0)
-        p.setBrush(Qt.BrushStyle.NoBrush)
-        p.setPen(QPen(acc, 2))
-        for i in range(len(points)-1):
-            p.drawLine(int(points[i][0]), int(points[i][1]), int(points[i+1][0]), int(points[i+1][1]))
+        self.layout.addWidget(self.toggle)
+        self.layout.addWidget(self.label)
+        self.layout.addStretch()
+
+    def setChecked(self, value):
+        self.toggle.setChecked(value)
+
+    def isChecked(self):
+        return self.toggle.isChecked()
+
+    def setText(self, text):
+        self.label.setText(text)
