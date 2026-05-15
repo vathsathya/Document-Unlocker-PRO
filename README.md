@@ -1,29 +1,36 @@
 # Document Unlocker PRO
 
-A high-performance, cross-platform document password recovery tool built with Python 3 and PyQt6.
+A high-performance, cross-platform document password recovery tool built with Python 3 and PyQt6. Featuring an intelligent recovery engine with hybrid CPU/GPU acceleration.
 
 ## Features
-- **High Performance**: Pure Python engine with multi-core CPU and hardware-accelerated GPU support (Intel Arc, NVIDIA, AMD).
-- **Smart Recovery**: Intelligent pattern matching and dictionary-based attacks.
-- **Wide Format Support**: Recover passwords for Office (.docx, .xlsx, .pptx), PDF, and Archives (.zip, .rar, .7z).
-- **Modern UI**: Sleek, responsive interface with real-time hardware telemetry and dark mode support.
+
+- **Multi-Mode Recovery**:
+  - **Smart Recovery**: Automatic chain attack starting with common dictionaries and moving to numeric brute-force.
+  - **Brute Force**: Exhaustive search with multiple complexity levels (Numeric, Alphanumeric, Markov, Keyboard Walk, etc.).
+  - **Mask Attack**: Custom pattern matching (e.g., `Pass?d?d?d` for a known prefix and 3 digits).
+  - **Rule-Based Attack**: Hybrid rule engine applying leet speak, years, and capitalization variations to base keywords.
+- **High Performance**: Pure Python engine with multi-core CPU support and hardware-accelerated GPU utilization via PyOpenCL.
+- **Hardware Telemetry**: Real-time monitoring of speed (passwords per second) and resource utilization.
+- **Localization**: Full interface support for **English** and **Khmer**.
+- **Modern UI**: Sleek, responsive interface with Dark and Light mode support.
 - **Security First**: 100% local processing with zero external data transmission.
 
 ## Technology Stack
-- **Backend**: Python 3.14+
+
 - **UI Framework**: PyQt6
 - **Acceleration**: PyOpenCL (GPU), Numba (JIT), ProcessPool (CPU)
-- **Crypto Libraries**: msoffcrypto-tool, pikepdf, cryptography
+- **Crypto & Formats**: `msoffcrypto-tool` (Office), `pikepdf` (PDF), `cryptography`
+- **Core**: Python 3.14+
 
 ## Installation & Setup
 
 ### 1. Prerequisites
-- **Python 3.14+**: Ensure Python is installed and added to your PATH.
-- **Hardware Drivers**: For GPU acceleration, install the appropriate OpenCL drivers:
+- **Python 3.14+**
+- **Hardware Drivers**: For GPU acceleration, install OpenCL drivers:
   - **Linux**: `sudo apt install intel-opencl-icd` (Intel) or `nvidia-opencl-icd` (NVIDIA).
-  - **Windows/macOS**: Drivers are usually included with the standard GPU driver package.
+  - **Windows/macOS**: Usually included with standard GPU drivers.
 
-### 2. Platform-Specific Setup
+### 2. Setup Commands
 
 #### 🐧 Linux
 ```bash
@@ -55,12 +62,25 @@ pip install -r requirements.txt
 python3 main.py
 ```
 
-## Development & Build
-To generate a standalone executable for your current platform:
-```bash
-python3 build.py
-```
-The resulting binary will be available in the `dist/` directory.
+## How to Use
+
+### Dashboard (Default)
+Select a protected document and click **Smart Recovery** for the most efficient automated attack. You can also manually configure the attack complexity and enable **Smart Boost** for maximum performance.
+
+### Custom Masks
+If you remember parts of the password, use the **Patterns** tab.
+- `?d`: Digit (0-9)
+- `?l`: Lowercase (a-z)
+- `?u`: Uppercase (A-Z)
+- `?s`: Symbols
+- `?a`: All characters
+
+### Smart Rules
+Enter a base keyword or hint in the **Rules** tab to generate intelligent variations (e.g., adding numbers, replacing letters with numbers).
+
+### Dictionary Attack
+Load a custom wordlist in the **Dictionary** tab. Enable **Hybrid Mode** to apply smart rules to the dictionary words.
 
 ## License
+
 MIT License

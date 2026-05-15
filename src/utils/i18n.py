@@ -80,10 +80,10 @@ TRANSLATIONS = {
         },
         "docs_content": """
 <h3>1. Smart Recovery (Recommended)</h3>
-Use this for passwords like '123456'. It tries common dictionaries first, then moves to numeric brute-force.
+Automated chain attack starting with common dictionaries and moving to numeric brute-force. Ideal for simple passwords.
 <br><br>
 <h3>2. Brute Force</h3>
-Attempts every possible combination. Choose the complexity (Numeric, Alphanumeric, etc.) based on what you remember about the password.
+Attempts every possible combination. Choose the complexity (Numeric, Alphanumeric, Markov, etc.) based on what you remember about the password.
 <br><br>
 <h3>3. Patterns (Mask)</h3>
 If you remember parts of the password, use masks:
@@ -91,14 +91,19 @@ If you remember parts of the password, use masks:
   <li><b>?d</b>: Digit (0-9)</li>
   <li><b>?l</b>: Lowercase (a-z)</li>
   <li><b>?u</b>: Uppercase (A-Z)</li>
+  <li><b>?s</b>: Symbols (!@#...)</li>
+  <li><b>?a</b>: All characters</li>
 </ul>
 Example: <i>Pass?d?d?d</i> will try 'Pass123', 'Pass456', etc.
 <br><br>
-<h3>4. Dictionary Attack</h3>
-Loads a text file of passwords. Use 'Hybrid Mode' to apply rules (variations) to each word.
+<h3>4. Smart Rules</h3>
+Enter a base keyword or hint to generate variations based on common password patterns (leet speak, years, capitalization).
+<br><br>
+<h3>5. Dictionary Attack</h3>
+Loads a text file of passwords. Use 'Hybrid Mode' to apply smart rules to each word in the dictionary.
 <br><br>
 <h3>Hardware Acceleration</h3>
-The app automatically detects GPUs. Use 'BOOST MODE' to maximize CPU/GPU utilization.
+The app automatically detects GPUs. Use 'BOOST MODE' to maximize CPU/GPU utilization for faster recovery.
 """
     },
     "km": {
@@ -182,10 +187,10 @@ The app automatically detects GPUs. Use 'BOOST MODE' to maximize CPU/GPU utiliza
         },
         "docs_content": """
 <h3>១. ការស្តារឡើងវិញដោយឆ្លាតវៃ (បានណែនាំ)</h3>
-ប្រើសម្រាប់ពាក្យសម្ងាត់ដូចជា '123456'។ វាសាកល្បងវចនានុក្រមទូទៅមុន បន្ទាប់មកប្តូរទៅការវាយប្រហារតាមលេខ។
+ការវាយប្រហារតាមខ្សែសង្វាក់ស្វ័យប្រវត្តិ ដោយចាប់ផ្តើមពីវចនានុក្រមទូទៅ និងបន្តទៅការវាយប្រហារតាមលេខ។ ល្អបំផុតសម្រាប់ពាក្យសម្ងាត់សាមញ្ញ។
 <br><br>
 <h3>២. ការវាយប្រហារដោយកម្លាំងបាយ (Brute Force)</h3>
-សាកល្បងគ្រប់ការផ្សំទាំងអស់។ ជ្រើសរើសកម្រិតស្មុគស្មាញ (លេខ, អក្សរ និងលេខ, ។ល។) ផ្អែកលើអ្វីដែលអ្នកចងចាំ។
+សាកល្បងគ្រប់ការផ្សំទាំងអស់។ ជ្រើសរើសកម្រិតស្មុគស្មាញ (លេខ, អក្សរ និងលេខ, Markov, ។ល។) ផ្អែកលើអ្វីដែលអ្នកចងចាំ។
 <br><br>
 <h3>៣. លំនាំ (ម៉ាស)</h3>
 ប្រសិនបើអ្នកចាំផ្នែកខ្លះនៃពាក្យសម្ងាត់ សូមប្រើម៉ាស៖
@@ -193,14 +198,19 @@ The app automatically detects GPUs. Use 'BOOST MODE' to maximize CPU/GPU utiliza
   <li><b>?d</b>: លេខ (0-9)</li>
   <li><b>?l</b>: អក្សរតូច (a-z)</li>
   <li><b>?u</b>: អក្សរធំ (A-Z)</li>
+  <li><b>?s</b>: និមិត្តសញ្ញា (!@#...)</li>
+  <li><b>?a</b>: គ្រប់តួអក្សរទាំងអស់</li>
 </ul>
 ឧទាហរណ៍៖ <i>Pass?d?d?d</i> នឹងសាកល្បង 'Pass123', 'Pass456', ។ល។
 <br><br>
-<h3>៤. ការវាយប្រហារតាមវចនានុក្រម</h3>
-ផ្ទុកឯកសារអត្ថបទនៃពាក្យសម្ងាត់។ ប្រើ 'របៀបចម្រុះ' ដើម្បីអនុវត្តវិធានទៅលើពាក្យនីមួយៗ។
+<h3>៤. វិធានឆ្លាតវៃ</h3>
+បញ្ចូលពាក្យគន្លឹះមូលដ្ឋាន ឬតម្រុយ ដើម្បីបង្កើតបំរែបំរួលដោយផ្អែកលើលំនាំពាក្យសម្ងាត់ទូទៅ (leet speak, ឆ្នាំ, អក្សរធំ)។
+<br><br>
+<h3>៥. ការវាយប្រហារតាមវចនានុក្រម</h3>
+ផ្ទុកឯកសារអត្ថបទនៃពាក្យសម្ងាត់។ ប្រើ 'របៀបចម្រុះ' ដើម្បីអនុវត្តវិធានទៅលើពាក្យនីមួយៗក្នុងវចនានុក្រម។
 <br><br>
 <h3>ការបង្កើនល្បឿនផ្នែករឹង</h3>
-កម្មវិធីរកឃើញ GPU ដោយស្វ័យប្រវត្តិ។ ប្រើ 'របៀបបង្កើនល្បឿន' ដើម្បីប្រើប្រាស់ CPU/GPU ឱ្យអស់ពីលទ្ធភាព។
+កម្មវិធីរកឃើញ GPU ដោយស្វ័យប្រវត្តិ។ ប្រើ 'របៀបបង្កើនល្បឿន' ដើម្បីប្រើប្រាស់ CPU/GPU ឱ្យអស់ពីលទ្ធភាពសម្រាប់ការស្តារឡើងវិញលឿនជាងមុន។
 """
     }
 }
