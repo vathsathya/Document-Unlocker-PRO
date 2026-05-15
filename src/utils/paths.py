@@ -10,3 +10,13 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
 
     return os.path.join(base_path, relative_path)
+
+def get_external_path(relative_path):
+    """ Get path to file relative to the executable or project root.
+    Use this for files that should be outside the PyInstaller bundle.
+    """
+    if getattr(sys, 'frozen', False):
+        base_path = os.path.dirname(sys.executable)
+    else:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)

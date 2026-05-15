@@ -69,6 +69,7 @@ TRANSLATIONS = {
         "status": {
             "ready": " Ready",
             "init": " Initializing hardware clusters...",
+            "unlocked": "File has no password or file is Unlocked!",
             "running": " Tested: {count} | Speed: {speed} p/s",
             "success": " Success: Password Found!",
             "failed": " Range exhausted.",
@@ -170,6 +171,7 @@ The app automatically detects GPUs. Use 'BOOST MODE' to maximize CPU/GPU utiliza
         "status": {
             "ready": " រួចរាល់",
             "init": " កំពុងចាប់ផ្តើមបណ្តុំផ្នែករឹង...",
+            "unlocked": "ឯកសារគ្មានពាក្យសម្ងាត់ ឬឯកសារត្រូវបានបើកសោ!",
             "running": " បានសាកល្បង: {count} | ល្បឿន: {speed} p/s",
             "success": " ជោគជ័យ: រកឃើញពាក្យសម្ងាត់!",
             "failed": " បានសាកល្បងអស់ហើយ រកមិនឃើញ។",

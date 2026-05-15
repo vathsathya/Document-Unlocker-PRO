@@ -14,7 +14,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from PyQt6.QtCore import QThread, pyqtSignal
 import msoffcrypto
 import pikepdf
-from ..utils.paths import resource_path
+from ..utils.paths import resource_path, get_external_path
 
 # Global persistent pool
 _global_executor = None
@@ -147,6 +147,44 @@ class RecoveryWorker(QThread):
     def stop(self):
         self.stop_event.set()
 
+    def _is_file_locked(self, file_path):
+        ext = os.path.splitext(file_path)[1].lower()
+        try:
+            if ext == '.pdf':
+                try:
+                    with pikepdf.open(file_path) as pdf:
+                        return False
+                except pikepdf.PasswordError:
+                    return True
+                except Exception:
+                    return False
+            elif ext in ['.docx', '.xlsx', '.pptx']:
+                with open(file_path, "rb") as f:
+                    msfile = msoffcrypto.OfficeFile(f)
+                    return msfile.is_encrypted()
+            elif ext == '.zip':
+                with zipfile.ZipFile(file_path) as zf:
+                    try:
+                        zf.testzip()
+                        return False
+                    except RuntimeError as e:
+                        if "password required" in str(e) or "File is password protected" in str(e):
+                            return True
+                        return False
+            elif ext in ['.rar', '.7z']:
+                cmd = '7z' if shutil.which('7z') else '7zz'
+                if ext == '.rar' and shutil.which('unrar'):
+                    res = subprocess.run(['unrar', 't', '-p-', file_path], capture_output=True, text=True)
+                    if res.returncode == 0: return False
+                    return True
+                
+                res = subprocess.run([cmd, 't', '-p-', file_path], capture_output=True, text=True)
+                if res.returncode == 0: return False
+                return True
+        except Exception:
+            pass
+        return True # Default to locked
+
     def _apply_smart_rules(self, word):
         variations = {word}
         # Expanded Leet Speak (Style 1: Numbers)
@@ -199,7 +237,7 @@ class RecoveryWorker(QThread):
         return list(variations)
 
     def _try_all_dictionaries(self, ex, tf, ext, boost, start_time, use_rules=False):
-        d_dirs = [resource_path("dictionaries"), "dictionaries"]
+        d_dirs = [get_external_path("dictionaries")]
         for d_dir in d_dirs:
             if os.path.exists(d_dir):
                 dicts = [os.path.join(d_dir, f) for f in os.listdir(d_dir) if f.endswith(".txt")]
@@ -212,6 +250,11 @@ class RecoveryWorker(QThread):
     def run(self):
         tf = self.target_file
         ext = os.path.splitext(tf)[1].lower()
+        
+        if not self._is_file_locked(tf):
+            self.log_signal.emit("File has no password or file is Unlocked!")
+            return self.finished.emit("NoPassword", "")
+            
         self.tested_count = 0
         self.progress.emit(0, 0)
         start_time = time.time()
@@ -251,7 +294,17 @@ class RecoveryWorker(QThread):
             use_rules = self.settings.get("use_rules", False)
             # Phase 1: Dictionary
             if use_dict:
-                self.log_signal.emit("Phase 1: Dictionary Scan")
+                word_count = 0
+                d_dir = get_external_path("dictionaries")
+                if os.path.exists(d_dir):
+                    dicts = [os.path.join(d_dir, f) for f in os.listdir(d_dir) if f.endswith(".txt")]
+                    for dp in dicts:
+                        try:
+                            with open(dp, "r", encoding="utf-8", errors="ignore") as f:
+                                word_count += sum(1 for _ in f)
+                        except: pass
+                
+                self.log_signal.emit(f"Phase 1: Dictionary Scan [word count: {word_count}]")
                 res = self._try_all_dictionaries(ex, tf, ext, boost, start_time, use_rules=use_rules)
                 if res: return self.finished.emit("Success", res)
             else:
@@ -593,7 +646,7 @@ class RecoveryWorker(QThread):
 
     def _run_passphrase(self, ex, tf, ext, boost, start_time):
         words = []
-        d_dirs = [resource_path("dictionaries"), "dictionaries"]
+        d_dirs = [get_external_path("dictionaries")]
         for d_dir in d_dirs:
             if os.path.exists(d_dir):
                 dicts = [os.path.join(d_dir, f) for f in os.listdir(d_dir) if f.endswith(".txt")]
@@ -634,7 +687,7 @@ class RecoveryWorker(QThread):
 
     def _run_hybrid(self, ex, tf, ext, boost, start_time):
         words = []
-        d_dirs = [resource_path("dictionaries"), "dictionaries"]
+        d_dirs = [get_external_path("dictionaries")]
         for d_dir in d_dirs:
             if os.path.exists(d_dir):
                 dicts = [os.path.join(d_dir, f) for f in os.listdir(d_dir) if f.endswith(".txt")]

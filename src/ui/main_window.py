@@ -11,7 +11,7 @@ from PyQt6.QtGui import QIcon
 from ..utils.session import load_settings, save_settings
 from ..utils.analyzer import analyze_file
 from ..utils.i18n import get_translator
-from ..utils.paths import resource_path
+from ..utils.paths import resource_path, get_external_path
 from ..engine.recovery import RecoveryWorker
 from .themes import get_qss
 from .components import ModernCheckBox
@@ -25,6 +25,12 @@ class ProfilerDialog(QDialog):
         self.setFixedWidth(400)
         
         layout = QVBoxLayout(self)
+        
+        title_lbl = QLabel("Target Profiler Wizard")
+        title_lbl.setStyleSheet("font-size: 20px; font-weight: 700; margin-bottom: 15px; color: #8b5cf6;")
+        title_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(title_lbl)
+        
         form = QFormLayout()
         
         self.first_name = QLineEdit()
@@ -426,8 +432,9 @@ class MainWindow(QMainWindow):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             words = dialog.get_words()
             if words:
-                os.makedirs("dictionaries", exist_ok=True)
-                file_path = "dictionaries/profiler_output.txt"
+                dict_dir = get_external_path("dictionaries")
+                os.makedirs(dict_dir, exist_ok=True)
+                file_path = os.path.join(dict_dir, "profiler_output.txt")
                 with open(file_path, "w") as f:
                     f.write("\n".join(words))
                 
@@ -451,6 +458,10 @@ class MainWindow(QMainWindow):
             self.log(f"✨ UNLOCKED SUCCESSFULLY!")
             self.log(f"🔑 ACCESS KEY: {res}")
             QMessageBox.information(self, "Success", f"SUCCESS!\n\nPassword found: {res}")
+        elif status == "NoPassword":
+            self.status_lbl.setText("NOT LOCKED")
+            self.log(self.t("status.unlocked"))
+            QMessageBox.information(self, "Info", self.t("status.unlocked"))
         elif status == "Stopped":
             self.log("⚠ Sequence aborted by user.")
             self.status_lbl.setText("Aborted")

@@ -201,6 +201,20 @@ def get_qss(theme_name, lang="en"):
         color: {c["accent"]};
     }}
     
+    QMenu {{
+        background-color: {c["surface"]};
+        color: {c["fg"]};
+        border: 1px solid {c["border"]};
+    }}
+    QMenu::item {{
+        background-color: transparent;
+        padding: 6px 24px;
+    }}
+    QMenu::item:selected {{
+        background-color: {c["accent"]};
+        color: white;
+    }}
+    
     QProgressBar {{ 
         background: {c["surface_light"]}; 
         border: none; 

@@ -39,7 +39,6 @@ def main():
         "--onefile",
         "--windowed",
         "--add-data=icons/icons.png:icons",
-        "--add-data=dictionaries:dictionaries",
         "--add-data=src:src", # Include the modular source
         "--name=DocumentUnlockerPRO",
         "--clean",
@@ -49,6 +48,15 @@ def main():
 
     print(f"--- Launching PyInstaller ---")
     PyInstaller.__main__.run(args)
+    
+    # Copy Dictionaries to dist (external)
+    dist_dict_dir = os.path.join("dist", "dictionaries")
+    if os.path.exists("dictionaries"):
+        print(f"--- Copying Dictionaries to dist ---")
+        if os.path.exists(dist_dict_dir):
+            shutil.rmtree(dist_dict_dir)
+        shutil.copytree("dictionaries", dist_dict_dir)
+        
     print("\nBUILD COMPLETE!")
 
 if __name__ == "__main__":
