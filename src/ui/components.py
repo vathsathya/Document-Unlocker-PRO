@@ -68,7 +68,7 @@ class ModernCheckBox(QWidget):
         self.toggle = ToggleSwitch()
         self.label = QLabel(text)
         self.label.setObjectName("checkLabel")
-        self.label.setStyleSheet("color: #94a3b8; font-weight: 500;")
+        self.label.setStyleSheet("font-weight: 500;")
         
         self.layout.addWidget(self.toggle)
         self.layout.addWidget(self.label)

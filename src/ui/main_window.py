@@ -4,7 +4,7 @@ import string
 import psutil
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QLabel, QLineEdit, QPushButton, QProgressBar, 
-                             QPlainTextEdit, QFileDialog, QFrame, QCheckBox, QMessageBox, QGroupBox, QGridLayout)
+                             QPlainTextEdit, QFileDialog, QFrame, QCheckBox, QMessageBox, QGroupBox, QGridLayout, QComboBox, QSpinBox)
 from PyQt6.QtCore import Qt, QTimer, QThread
 from PyQt6.QtGui import QIcon
 
@@ -15,6 +15,78 @@ from ..utils.paths import resource_path
 from ..engine.recovery import RecoveryWorker
 from .themes import get_qss
 from .components import ModernCheckBox
+
+from PyQt6.QtWidgets import QDialog, QFormLayout, QTabWidget
+
+class ProfilerDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Target Profiler Wizard")
+        self.setFixedWidth(400)
+        
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+        
+        self.first_name = QLineEdit()
+        self.last_name = QLineEdit()
+        self.birth_year = QLineEdit()
+        self.pet_name = QLineEdit()
+        self.fav_team = QLineEdit()
+        self.custom_keywords = QLineEdit()
+        self.custom_keywords.setPlaceholderText("comma, separated, words")
+        
+        form.addRow("First Name:", self.first_name)
+        form.addRow("Last Name:", self.last_name)
+        form.addRow("Birth Year:", self.birth_year)
+        form.addRow("Pet's Name:", self.pet_name)
+        form.addRow("Favorite Team:", self.fav_team)
+        form.addRow("Custom Keywords:", self.custom_keywords)
+        
+        layout.addLayout(form)
+        
+        self.error_lbl = QLabel("")
+        self.error_lbl.setStyleSheet("color: #ef4444; font-weight: 600; margin-top: 5px;")
+        layout.addWidget(self.error_lbl)
+        
+        btn_h = QHBoxLayout()
+        self.gen_btn = QPushButton("Generate Dictionary")
+        self.gen_btn.clicked.connect(self.on_generate)
+        btn_h.addWidget(self.gen_btn)
+        
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.clicked.connect(self.reject)
+        btn_h.addWidget(self.cancel_btn)
+        
+        layout.addLayout(btn_h)
+        
+    def on_generate(self):
+        if not self.get_words():
+            self.error_lbl.setText("Please enter at least one keyword!")
+        else:
+            self.accept()
+        
+    def get_words(self):
+        words = []
+        for w in [self.first_name.text(), self.last_name.text(), self.pet_name.text(), self.fav_team.text()]:
+            if w: words.append(w)
+            
+        custom = self.custom_keywords.text()
+        if custom:
+            words.extend([w.strip() for w in custom.split(",") if w.strip()])
+            
+        year = self.birth_year.text()
+        
+        results = set(words)
+        for w in words:
+            if year:
+                results.add(w + year)
+                results.add(w + year[2:] if len(year) == 4 else w)
+            results.add(w.lower())
+            results.add(w.capitalize())
+            results.add(w + "123")
+            results.add(w + "!")
+            
+        return list(results)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -75,7 +147,7 @@ class MainWindow(QMainWindow):
         ctrl_h.addWidget(self.lang_btn)
         
         self.theme_btn = QPushButton("🌙" if self.theme == "light" else "☀️")
-        self.theme_btn.setFixedWidth(60)
+        self.theme_btn.setFixedWidth(80)
         self.theme_btn.clicked.connect(self.toggle_theme)
         ctrl_h.addWidget(self.theme_btn)
         header.addLayout(ctrl_h)
@@ -108,9 +180,13 @@ class MainWindow(QMainWindow):
         card_layout.addLayout(file_v)
         
         # Strategy Grid
-        self.options_group = QGroupBox("RECOVERY CONFIGURATION")
-        grid = QGridLayout(self.options_group)
-        grid.setContentsMargins(20, 30, 20, 20)
+        # Create Tab Widget
+        self.tabs = QTabWidget()
+        
+        # Tab 1: Strategy Option
+        self.tab_strategy = QWidget()
+        grid = QGridLayout(self.tab_strategy)
+        grid.setContentsMargins(20, 20, 20, 20)
         grid.setSpacing(20)
         
         self.dict_chk = ModernCheckBox("Dictionary Mode")
@@ -121,16 +197,61 @@ class MainWindow(QMainWindow):
         self.rules_chk.setChecked(True)
         grid.addWidget(self.rules_chk, 0, 1)
         
-        self.brute_chk = ModernCheckBox("Numeric Brute Force")
+        self.brute_chk = ModernCheckBox("Brute Force Search")
         self.brute_chk.setChecked(True)
         grid.addWidget(self.brute_chk, 1, 0)
         
-        # Removed GPU Acceleration for hardware safety
+        self.complexity_combo = QComboBox()
+        self.complexity_combo.setMinimumHeight(40)
+        grid.addWidget(self.complexity_combo, 1, 1)
         
         self.boost_chk = ModernCheckBox("Smart Boost Mode")
         grid.addWidget(self.boost_chk, 2, 0)
         
-        card_layout.addWidget(self.options_group)
+        self.tabs.addTab(self.tab_strategy, "Strategy Option")
+        
+        # Tab 2: Advanced Option
+        self.tab_advanced = QWidget()
+        adv_layout = QGridLayout(self.tab_advanced)
+        adv_layout.setContentsMargins(20, 20, 20, 20)
+        adv_layout.setSpacing(10)
+        
+        self.min_lbl = QLabel("Min Length:")
+        self.min_spin = QSpinBox()
+        self.min_spin.setRange(1, 12)
+        self.min_spin.setValue(1)
+        adv_layout.addWidget(self.min_lbl, 0, 0)
+        adv_layout.addWidget(self.min_spin, 0, 1)
+        
+        self.max_lbl = QLabel("Max Length:")
+        self.max_spin = QSpinBox()
+        self.max_spin.setRange(1, 12)
+        self.max_spin.setValue(12)
+        adv_layout.addWidget(self.max_lbl, 0, 2)
+        adv_layout.addWidget(self.max_spin, 0, 3)
+        
+        self.charset_lbl = QLabel("Custom Charset:")
+        self.charset_in = QLineEdit()
+        self.charset_in.setPlaceholderText("e.g. abc123!@#")
+        adv_layout.addWidget(self.charset_lbl, 1, 0)
+        adv_layout.addWidget(self.charset_in, 1, 1, 1, 3)
+        
+        self.mask_lbl = QLabel("Mask Pattern:")
+        self.mask_in = QLineEdit()
+        self.mask_in.setPlaceholderText("e.g. ?u?l?d?d")
+        adv_layout.addWidget(self.mask_lbl, 2, 0)
+        adv_layout.addWidget(self.mask_in, 2, 1, 1, 3)
+        
+        self.resume_chk = ModernCheckBox("Resume Session")
+        adv_layout.addWidget(self.resume_chk, 3, 0, 1, 2)
+        
+        self.profiler_btn = QPushButton("Target Profiler Wizard")
+        self.profiler_btn.clicked.connect(self.on_open_profiler)
+        adv_layout.addWidget(self.profiler_btn, 3, 2, 1, 2)
+        
+        self.tabs.addTab(self.tab_advanced, "Advanced Option")
+        
+        card_layout.addWidget(self.tabs)
         
         # Primary Action
         self.unlock_btn = QPushButton("START RECOVERY")
@@ -192,11 +313,20 @@ class MainWindow(QMainWindow):
         self.file_in.setPlaceholderText(t("dashboard.placeholder"))
         self.browse_btn.setText(t("dashboard.browse"))
         
-        self.options_group.setTitle("STRATEGY OPTIONS" if self.lang == "en" else "ជម្រើសយុទ្ធសាស្ត្រ")
+        self.tabs.setTabText(0, "Strategy Option" if self.lang == "en" else "ជម្រើសយុទ្ធសាស្ត្រ")
         self.dict_chk.setText(t("dashboard.use_dict"))
         self.rules_chk.setText("Apply Smart Rules" if self.lang == "en" else "អនុវត្តវិធានឆ្លាតវៃ")
-        self.brute_chk.setText("Full Brute Force" if self.lang == "en" else "វាយប្រហារដោយកម្លាំងបាយ")
+        self.brute_chk.setText(t("dashboard.start_brute"))
+        self.complexity_combo.clear()
+        self.complexity_combo.addItems(t("dashboard.complexities"))
         self.boost_chk.setText(t("dashboard.boost"))
+        
+        self.tabs.setTabText(1, "Advanced Option" if self.lang == "en" else "ជម្រើសកម្រិតខ្ពស់")
+        self.min_lbl.setText(t("dashboard.min_len"))
+        self.max_lbl.setText(t("dashboard.max_len"))
+        self.charset_lbl.setText(t("dashboard.custom_cs"))
+        self.mask_lbl.setText(t("dashboard.mask_pattern"))
+        self.resume_chk.setText(t("dashboard.resume"))
         
         # GPU detection removed
 
@@ -226,15 +356,55 @@ class MainWindow(QMainWindow):
         self.log("🚀 INITIALIZING ADVANCED RECOVERY SEQUENCE...")
         self.log(f"📦 TARGET: {os.path.basename(tf)}")
         
+        cs = None
+        if self.brute_chk.isChecked():
+            custom_cs = self.charset_in.text()
+            if custom_cs:
+                cs = custom_cs
+            else:
+                idx = self.complexity_combo.currentIndex()
+                import string
+                cs_map = [
+                    string.digits,                                      # Numeric
+                    string.ascii_lowercase,                             # Lowercase
+                    string.ascii_uppercase,                             # Uppercase
+                    string.ascii_letters + string.digits,               # Alphanumeric
+                    string.ascii_letters + string.digits + string.punctuation # Extended
+                ]
+                if 0 <= idx < len(cs_map):
+                    cs = cs_map[idx]
+                else:
+                    cs = string.digits
+
         settings = {
             "boost": self.boost_chk.isChecked(),
             "use_dict": self.dict_chk.isChecked(),
             "use_rules": self.rules_chk.isChecked(),
-            "char_set": string.digits if self.brute_chk.isChecked() else None
+            "char_set": cs,
+            "min_len": self.min_spin.value(),
+            "max_len": self.max_spin.value(),
+            "mask": self.mask_in.text(),
+            "resume": self.resume_chk.isChecked()
         }
         
+        mode = "smart"
+        if settings["mask"]:
+            mode = "mask"
+        elif self.brute_chk.isChecked():
+            idx = self.complexity_combo.currentIndex()
+            if idx == 5:
+                mode = "markov"
+            elif idx == 6:
+                mode = "keyboard"
+            elif idx == 7:
+                mode = "passphrase"
+            elif idx == 8:
+                mode = "hybrid"
+            elif idx == 9:
+                mode = "hashcat"
+            
         self.status_lbl.setText(self.t("status.init"))
-        self.worker = RecoveryWorker(tf, "smart", settings)
+        self.worker = RecoveryWorker(tf, mode, settings)
         self.worker.progress.connect(self.on_progress)
         self.worker.finished.connect(self.on_finished)
         self.worker.log_signal.connect(self.log)
@@ -250,6 +420,19 @@ class MainWindow(QMainWindow):
             self.status_lbl.setText(self.t("status.stopping"))
             self.worker.stop()
             self.stop_btn.setEnabled(False)
+
+    def on_open_profiler(self):
+        dialog = ProfilerDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            words = dialog.get_words()
+            if words:
+                os.makedirs("dictionaries", exist_ok=True)
+                file_path = "dictionaries/profiler_output.txt"
+                with open(file_path, "w") as f:
+                    f.write("\n".join(words))
+                
+                QMessageBox.information(self, "Success", f"Generated {len(words)} candidates and saved to dictionaries/profiler_output.txt.\nIt will be checked automatically in Dictionary Mode.")
+                self.dict_chk.setChecked(True)
 
     def on_progress(self, count, speed):
         self.status_lbl.setText(self.t("status.running", count=f"{count:,}", speed=f"{speed:,}"))

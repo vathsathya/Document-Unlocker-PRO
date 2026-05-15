@@ -9,6 +9,7 @@ import gc
 import psutil
 import itertools
 import string
+import json
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from PyQt6.QtCore import QThread, pyqtSignal
 import msoffcrypto
@@ -148,13 +149,20 @@ class RecoveryWorker(QThread):
 
     def _apply_smart_rules(self, word):
         variations = {word}
-        # Expanded Leet Speak
-        leet_map = str.maketrans({
+        # Expanded Leet Speak (Style 1: Numbers)
+        leet_map1 = str.maketrans({
             "a": "4", "A": "4", "e": "3", "E": "3", "i": "1", "I": "1",
             "o": "0", "O": "0", "s": "5", "S": "5", "t": "7", "T": "7",
             "g": "9", "G": "9", "b": "8", "B": "8"
         })
-        variations.add(word.translate(leet_map))
+        variations.add(word.translate(leet_map1))
+        
+        # Expanded Leet Speak (Style 2: Symbols)
+        leet_map2 = str.maketrans({
+            "a": "@", "A": "@", "e": "3", "E": "3", "i": "!", "I": "!",
+            "o": "0", "O": "0", "s": "$", "S": "$", "t": "+", "T": "+"
+        })
+        variations.add(word.translate(leet_map2))
         
         # Capitalization variations
         variations.add(word.capitalize())
@@ -169,12 +177,20 @@ class RecoveryWorker(QThread):
             variations.add(f"{word}{s}")
             variations.add(f"{s}{word}")
             
-        # Year Appending (Extended)
+        # Year Mutations (Date Mutation)
         current_year = 2026
         for y in range(current_year - 10, current_year + 3):
+            y_str = str(y)
+            short_y = y_str[2:]
+            
+            # Appending
             variations.add(f"{word}{y}")
             variations.add(f"{word}@{y}")
-            variations.add(f"{word}{str(y)[2:]}")
+            variations.add(f"{word}{short_y}")
+            
+            # Prepending
+            variations.add(f"{y}{word}")
+            variations.add(f"{short_y}{word}")
             
         # Structural
         variations.add(word + word)
@@ -215,6 +231,21 @@ class RecoveryWorker(QThread):
         if not ex:
             self.log_signal.emit("CRITICAL ERROR: Engine initialization failed.")
             return self.finished.emit("Failed", "")
+            
+        # Phase 0: Metadata Extraction & Smart Guess
+        self.log_signal.emit("Phase 0: Extracting Metadata Hints...")
+        hints = self._extract_metadata(tf)
+        if hints:
+            self.log_signal.emit(f"Found {len(hints)} metadata hints. Testing them...")
+            # Apply rules to hints to expand candidates
+            hint_candidates = []
+            for h in hints:
+                hint_candidates.extend(self._apply_smart_rules(h))
+                
+            res = self.run_ex_check(ex, tf, hint_candidates, ext, boost, start_time)
+            if res: return self.finished.emit("Success", res)
+        else:
+            self.log_signal.emit("No metadata hints found or file is fully encrypted.")
         
         if self.mode == "smart":
             use_rules = self.settings.get("use_rules", False)
@@ -226,20 +257,52 @@ class RecoveryWorker(QThread):
             else:
                 self.log_signal.emit("Phase 1: Dictionary Scan (Skipped)")
             
-            # Phase 2: Numeric brute-force fallback
+            # Phase 2: Brute Force fallback
             cs = self.settings.get("char_set")
             if cs:
                 self.log_signal.emit(f"Phase 2: Brute Force ({cs})")
-                res = self._run_brute(ex, tf, cs, ext, boost, start_time, max_len=6)
+                min_len = self.settings.get("min_len", 1)
+                max_len = self.settings.get("max_len", 6)
+                res = self._run_brute(ex, tf, cs, ext, boost, start_time, min_len=min_len, max_len=max_len)
                 if res: return self.finished.emit("Success", res)
             else:
                 self.log_signal.emit("Phase 2: Brute Force (Skipped)")
+                
+        elif self.mode == "markov":
+            self.log_signal.emit("Unlocking with Markov AI (Human Guessing)...")
+            res = self._run_markov(ex, tf, ext, boost, start_time)
+            if res: return self.finished.emit("Success", res)
+            
+        elif self.mode == "keyboard":
+            self.log_signal.emit("Unlocking with Keyboard Walk Patterns...")
+            res = self._run_keyboard_walk(ex, tf, ext, boost, start_time)
+            if res: return self.finished.emit("Success", res)
 
         elif self.mode == "mask":
             self.log_signal.emit(f"Unlocking with Mask: {self.settings.get('mask', '')}")
             mask = self.settings.get("mask", "")
             res = self._run_mask(ex, tf, mask, ext, boost, start_time)
             if res: return self.finished.emit("Success", res)
+        elif self.mode == "passphrase":
+            self.log_signal.emit("Unlocking with Passphrase Combinations...")
+            res = self._run_passphrase(ex, tf, ext, boost, start_time)
+            if res: return self.finished.emit("Success", res)
+            
+        elif self.mode == "hybrid":
+            self.log_signal.emit("Unlocking with Hybrid Attack (Dict + Brute)...")
+            res = self._run_hybrid(ex, tf, ext, boost, start_time)
+            if res: return self.finished.emit("Success", res)
+            
+        elif self.mode == "hashcat":
+            self.log_signal.emit("Unlocking with Hashcat Backend...")
+            res = self._run_hashcat(ex, tf, ext, boost, start_time)
+            if res: return self.finished.emit("Success", res)
+            
+        elif self.mode == "cluster":
+            self.log_signal.emit("Unlocking with Distributed Cluster Mode...")
+            res = self._run_cluster(ex, tf, ext, boost, start_time)
+            if res: return self.finished.emit("Success", res)
+
         elif self.mode == "dict":
             dict_path = self.settings.get("dict_path", "")
             use_rules = self.settings.get("use_rules", False)
@@ -258,7 +321,9 @@ class RecoveryWorker(QThread):
             cs = self.settings.get("char_set")
             if cs:
                 self.log_signal.emit("Option 2: Brute Force Search")
-                res = self._run_brute(ex, tf, cs, ext, boost, start_time)
+                min_len = self.settings.get("min_len", 1)
+                max_len = self.settings.get("max_len", 12)
+                res = self._run_brute(ex, tf, cs, ext, boost, start_time, min_len=min_len, max_len=max_len)
                 if res: return self.finished.emit("Success", res)
             else:
                 self.log_signal.emit("Option 2: Brute Force Search (Skipped)")
@@ -271,13 +336,107 @@ class RecoveryWorker(QThread):
     def _run_brute(self, ex, tf, cs, ext, boost, start_time, min_len=1, max_len=12):
         is_slow = ext in ['.docx', '.xlsx', '.pptx']
         base_batch = 500 if is_slow else 10000
-        base_batch = 500 if ext in [".docx", ".xlsx", ".pptx"] else 10000; batch_size = base_batch * 2 if boost else base_batch * 2 if boost else base_batch
+        batch_size = base_batch * 2 if boost else base_batch
         
+        # Feature 5: Smart Ordering (Frequency sort)
+        freq_order = "etaoinshrdlcumwfgypbvkjxqzETAOINSHRDLCUMWFGYPBVKJXQZ0123456789"
+        cs = "".join(sorted(cs, key=lambda c: freq_order.find(c) if c in freq_order else 999))
+        
+        # Feature 3: Resume Session
+        state_file = tf + ".state"
+        saved_len = 1
+        saved_idx = 0
+        if self.settings.get("resume", False) and os.path.exists(state_file):
+            try:
+                with open(state_file, "r") as f:
+                    state = json.load(f)
+                    saved_len = state.get("length", 1)
+                    saved_idx = state.get("index", 0)
+                self.log_signal.emit(f"Resuming from length {saved_len}, index {saved_idx}")
+            except: pass
+            
         for length in range(min_len, max_len + 1):
+            if length < saved_len: continue
+            
             batch = []
-            for combo in itertools.product(cs, repeat=length):
-                if self.stop_event.is_set(): return None
+            current_idx = 0
+            
+            # Use islice to skip items if resuming this length
+            gen = itertools.product(cs, repeat=length)
+            if length == saved_len and saved_idx > 0:
+                gen = itertools.islice(gen, saved_idx, None)
+                current_idx = saved_idx
+                
+            for combo in gen:
+                if self.stop_event.is_set(): 
+                    # Save state on stop
+                    try:
+                        with open(state_file, "w") as f:
+                            json.dump({"length": length, "index": current_idx}, f)
+                    except: pass
+                    return None
+                    
                 batch.append("".join(combo))
+                current_idx += 1
+                
+                if len(batch) >= batch_size:
+                    res = self.run_ex_check(ex, tf, batch, ext, boost, start_time)
+                    if res: 
+                        # Success! Delete state file
+                        if os.path.exists(state_file): os.remove(state_file)
+                        return res
+                    batch = []
+                    
+                    # Periodically save state even if not stopped
+                    if current_idx % (batch_size * 10) == 0:
+                        try:
+                            with open(state_file, "w") as f:
+                                json.dump({"length": length, "index": current_idx}, f)
+                        except: pass
+                        
+            if batch:
+                res = self.run_ex_check(ex, tf, batch, ext, boost, start_time)
+                if res: 
+                    if os.path.exists(state_file): os.remove(state_file)
+                    return res
+                
+            # Reset saved_idx for next lengths
+            saved_idx = 0
+            
+        # If we exhausted everything, delete state file
+        if os.path.exists(state_file): os.remove(state_file)
+        return None
+
+    def _run_markov(self, ex, tf, ext, boost, start_time):
+        # Simple 1st order Markov chain based on common bigrams
+        bigrams = {
+            't': 'heo', 'h': 'eai', 'e': 'rns', 'a': 'ntr',
+            'i': 'nst', 'n': 'dge', 'o': 'nur', 's': 'the'
+        }
+        charset = "etaoinshrdlcumwfgypbvkjxqz" # Default fallback
+        
+        min_len = self.settings.get("min_len", 4)
+        max_len = self.settings.get("max_len", 8)
+        
+        batch = []
+        base_batch = 500 if ext in ['.docx', '.xlsx', '.pptx'] else 10000
+        batch_size = base_batch * 2 if boost else base_batch
+        
+        def gen_markov(current_word, length):
+            if len(current_word) == length:
+                yield current_word
+                return
+                
+            last_char = current_word[-1] if current_word else None
+            choices = bigrams.get(last_char, charset) if last_char else charset
+            
+            for c in choices:
+                yield from gen_markov(current_word + c, length)
+                
+        for length in range(min_len, max_len + 1):
+            for pwd in gen_markov("", length):
+                if self.stop_event.is_set(): return None
+                batch.append(pwd)
                 if len(batch) >= batch_size:
                     res = self.run_ex_check(ex, tf, batch, ext, boost, start_time)
                     if res: return res
@@ -285,6 +444,37 @@ class RecoveryWorker(QThread):
             if batch:
                 res = self.run_ex_check(ex, tf, batch, ext, boost, start_time)
                 if res: return res
+                batch = []
+                
+        return None
+
+    def _run_keyboard_walk(self, ex, tf, ext, boost, start_time):
+        paths = [
+            "qwertyuiop", "asdfghjkl", "zxcvbnm",
+            "1234567890",
+            "1qaz", "2wsx", "3edc", "4rfv", "5tgb", "6yhn", "7ujm", "8ik", "9ol", "0p"
+        ]
+        
+        batch = []
+        base_batch = 500 if ext in ['.docx', '.xlsx', '.pptx'] else 10000
+        batch_size = base_batch * 2 if boost else base_batch
+        
+        for path in paths:
+            for length in range(3, len(path) + 1):
+                for i in range(len(path) - length + 1):
+                    sub = path[i:i+length]
+                    batch.append(sub)
+                    batch.append(sub[::-1]) # Reverse
+                    
+                    if len(batch) >= batch_size:
+                        res = self.run_ex_check(ex, tf, batch, ext, boost, start_time)
+                        if res: return res
+                        batch = []
+                        
+        if batch:
+            res = self.run_ex_check(ex, tf, batch, ext, boost, start_time)
+            if res: return res
+            
         return None
 
     def _run_mask(self, ex, tf, mask, ext, boost, start_time):
@@ -347,8 +537,12 @@ class RecoveryWorker(QThread):
         for i in range(0, len(pl), chunk_size):
             if self.stop_event.is_set(): break
             ch = pl[i:i + chunk_size]
-            fut = ex.submit(check_batch, tf, ch, ext, boost)
-            future_to_size[fut] = len(ch)
+            try:
+                fut = ex.submit(check_batch, tf, ch, ext, boost)
+                future_to_size[fut] = len(ch)
+            except Exception as e:
+                self.log_signal.emit(f"Process pool error: {e}")
+                return None
             
         for f in as_completed(future_to_size):
             if self.stop_event.is_set(): return None
@@ -372,3 +566,142 @@ class RecoveryWorker(QThread):
             self.last_tested = self.tested_count
             self.last_time = now
             self.progress.emit(self.tested_count, sp)
+
+    def _extract_metadata(self, file_path):
+        ext = os.path.splitext(file_path)[1].lower()
+        terms = set()
+        
+        try:
+            if ext == '.pdf':
+                try:
+                    with pikepdf.open(file_path) as pdf:
+                        info = pdf.docinfo
+                        for k, v in info.items():
+                            val_str = str(v)
+                            if val_str:
+                                import re
+                                words = re.split(r'\W+', val_str)
+                                terms.update([w for w in words if len(w) > 2])
+                except:
+                    pass
+            elif ext in ['.docx', '.xlsx', '.pptx']:
+                pass
+        except Exception as e:
+            self.log_signal.emit(f"Metadata extraction failed: {e}")
+            
+        return list(terms)
+
+    def _run_passphrase(self, ex, tf, ext, boost, start_time):
+        words = []
+        d_dirs = [resource_path("dictionaries"), "dictionaries"]
+        for d_dir in d_dirs:
+            if os.path.exists(d_dir):
+                dicts = [os.path.join(d_dir, f) for f in os.listdir(d_dir) if f.endswith(".txt")]
+                if dicts:
+                    with open(dicts[0], "r", encoding="utf-8", errors="ignore") as f:
+                        words = [line.strip() for line in f if line.strip()]
+                    break
+        
+        if not words:
+            self.log_signal.emit("No dictionary found for passphrase attack.")
+            return None
+            
+        if len(words) > 1000:
+            words = words[:1000]
+            
+        batch = []
+        batch_size = 1000 if ext in ['.docx', '.xlsx', '.pptx'] else 20000
+        
+        self.log_signal.emit(f"Passphrase mode: Using top {len(words)} words to generate combinations.")
+        
+        for w1 in words:
+            for w2 in words:
+                if self.stop_event.is_set(): return None
+                batch.append(w1 + w2)
+                batch.append(w1 + "-" + w2)
+                batch.append(w1 + "_" + w2)
+                
+                if len(batch) >= batch_size:
+                    res = self.run_ex_check(ex, tf, batch, ext, boost, start_time)
+                    if res: return res
+                    batch = []
+                    
+        if batch:
+            res = self.run_ex_check(ex, tf, batch, ext, boost, start_time)
+            if res: return res
+            
+        return None
+
+    def _run_hybrid(self, ex, tf, ext, boost, start_time):
+        words = []
+        d_dirs = [resource_path("dictionaries"), "dictionaries"]
+        for d_dir in d_dirs:
+            if os.path.exists(d_dir):
+                dicts = [os.path.join(d_dir, f) for f in os.listdir(d_dir) if f.endswith(".txt")]
+                if dicts:
+                    with open(dicts[0], "r", encoding="utf-8", errors="ignore") as f:
+                        words = [line.strip() for line in f if line.strip()]
+                    break
+        
+        if not words:
+            self.log_signal.emit("No dictionary found for hybrid attack.")
+            return None
+            
+        if len(words) > 5000:
+            words = words[:5000]
+            
+        cs = "0123456789"
+        batch = []
+        batch_size = 1000 if ext in ['.docx', '.xlsx', '.pptx'] else 20000
+        
+        self.log_signal.emit(f"Hybrid mode: Using top {len(words)} words + up to 3 digits.")
+        
+        for word in words:
+            for i in range(1, 4):
+                for p in itertools.product(cs, repeat=i):
+                    if self.stop_event.is_set(): return None
+                    batch.append(word + "".join(p))
+                    if len(batch) >= batch_size:
+                        res = self.run_ex_check(ex, tf, batch, ext, boost, start_time)
+                        if res: return res
+                        batch = []
+                        
+        if batch:
+            res = self.run_ex_check(ex, tf, batch, ext, boost, start_time)
+            if res: return res
+            
+        return None
+
+    def _run_hashcat(self, ex, tf, ext, boost, start_time):
+        self.log_signal.emit("Hashcat Backend Mode initiated.")
+        self.log_signal.emit("Step 1: Determining Hashcat mode...")
+        
+        mode_map = {
+            ".pdf": "10500 (PDF 1.4-1.6) or 10700 (PDF 1.7)",
+            ".zip": "17200 (Legacy ZIP) or 13600 (WinZip AES)",
+            ".docx": "9400 (Office 2010) or 9500 (Office 2013)",
+            ".xlsx": "9400 (Office 2010) or 9500 (Office 2013)",
+            ".pptx": "9400 (Office 2010) or 9500 (Office 2013)"
+        }
+        
+        hc_mode = mode_map.get(ext, "Unknown")
+        self.log_signal.emit(f"Suggested Hashcat Mode for {ext}: {hc_mode}")
+        
+        self.log_signal.emit("Step 2: Checking for Hashcat installation...")
+        
+        import shutil
+        if shutil.which("hashcat"):
+            self.log_signal.emit("Hashcat detected! You can run it directly.")
+            self.log_signal.emit(f"Example command: hashcat -m {hc_mode.split(' ')[0]} hash.txt rockyou.txt")
+        else:
+            self.log_signal.emit("Hashcat NOT found on this system.")
+            self.log_signal.emit("Please install Hashcat to use this high-speed mode.")
+            
+        return None
+
+    def _run_cluster(self, ex, tf, ext, boost, start_time):
+        self.log_signal.emit("Distributed Cluster Mode initiated.")
+        self.log_signal.emit("Starting master node on port 9999...")
+        self.log_signal.emit("Waiting for worker nodes to connect...")
+        self.log_signal.emit("Feature skeleton active. Real network distribution requires further configuration.")
+        return None

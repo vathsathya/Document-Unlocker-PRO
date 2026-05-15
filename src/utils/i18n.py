@@ -20,13 +20,25 @@ TRANSLATIONS = {
             "use_dict": "USE DICTIONARY (Check common passwords first)",
             "start": "START RECOVERY",
             "smart_start": "SMART RECOVERY (Auto Chain)",
+            "start_brute": "BRUTE FORCE ATTACK",
             "stop": "STOP",
+            "advanced": "Advanced Options",
+            "min_len": "Min Length:",
+            "max_len": "Max Length:",
+            "custom_cs": "Custom Charset:",
+            "mask_pattern": "Mask Pattern:",
+            "resume": "Resume Session",
             "complexities": [
                 "Numeric (0-9)", 
                 "Lowercase (a-z)", 
                 "Uppercase (A-Z)", 
                 "Alphanumeric (a-z, A-Z, 0-9)",
-                "Extended (All Characters)"
+                "Extended (All Characters)",
+                "Markov (Human-like)",
+                "Keyboard Walk",
+                "Passphrase (Combinations)",
+                "Hybrid (Dict + Brute)",
+                "Hashcat Backend"
             ]
         },
         "patterns": {
@@ -109,13 +121,25 @@ The app automatically detects GPUs. Use 'BOOST MODE' to maximize CPU/GPU utiliza
             "use_dict": "ប្រើវចនានុក្រម (សាកល្បងពាក្យសម្ងាត់ទូទៅមុន)",
             "start": "ចាប់ផ្តើមការស្តារឡើងវិញ",
             "smart_start": "ការស្តារឡើងវិញដោយឆ្លាតវៃ (ស្វ័យប្រវត្តិ)",
+            "start_brute": "ការវាយប្រហារដោយកម្លាំងបាយ",
             "stop": "បញ្ឈប់",
+            "advanced": "ជម្រើសកម្រិតខ្ពស់",
+            "min_len": "ប្រវែងអប្បបរមា៖",
+            "max_len": "ប្រវែងអតិបរមា៖",
+            "custom_cs": "តួអក្សរផ្ទាល់ខ្លួន៖",
+            "mask_pattern": "លំនាំម៉ាស៖",
+            "resume": "បន្តវគ្គចាស់",
             "complexities": [
                 "លេខ (0-9)", 
                 "អក្សរតូច (a-z)", 
                 "អក្សរធំ (A-Z)", 
                 "អក្សរ និងលេខ (a-z, A-Z, 0-9)",
-                "បន្ថែម (គ្រប់តួអក្សរ)"
+                "បន្ថែម (គ្រប់តួអក្សរ)",
+                "Markov (ដូចមនុស្ស)",
+                "Keyboard Walk (លំនាំក្ដារចុច)",
+                "ឃ្លាពាក្យសម្ងាត់ (ការរួមបញ្ចូលគ្នា)",
+                "កូនកាត់ (វចនានុក្រម + កម្លាំងបាយ)",
+                "Hashcat Backend"
             ]
         },
         "patterns": {
